@@ -1,142 +1,47 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-rr_track_converter.py
-=====================
-
-Convert OLD Rocket Racing / DelMar tracks (class `DelMarTrack_BP_C`, which Epic's
-deleted brand template no longer validates) into the NEW validate-friendly device
-(`Device_FortDelMarTrack_C`).
-
-WHAT IT KEEPS EXACTLY
----------------------
-  * Every spline point's position / tangent / rotation / scale  (the `SplineCurves`
-    block is copied byte-for-byte).
-  * The binary `Spline=SplineData ...` blob (copied byte-for-byte).
-  * The `RotationalMinimalFrameNormals` table (banking / roll of every sample).
-  * Each segment's TRACK TYPE and per-segment mesh customizations
-    (`DelMarTrackPointData.MetaData(i)`), with the gameplay tag namespace remapped
-    `DelMar.Track.*`  ->  `FortDelMar.Track.*`  (this is what the new device reads).
-  * The exact WORLD location & rotation of the whole track (see "Transform" below).
-  * Track-to-track connections (`StartTrackConnection` / `EndTrackConnection`) — the
-    references are renamed in lock-step so links between converted pieces survive.
-
-WHY YOUR FRIEND'S VERSION WENT INVISIBLE
-----------------------------------------
-The new device renders its road mesh from the per-segment gameplay tags in
-`DelMarTrackPointData.MetaData(i).TrackTypeTag`.  In the new build those tags were
-renamed from `DelMar.Track.*` to `FortDelMar.Track.*`.  If you keep the OLD tag
-strings (or start from an empty template and drop the MetaData), the device cannot
-resolve the type, enables no mesh customizations, and the track is invisible even
-though the spline is still there.  This script remaps every tag and carries the
-MetaData across, so the road shows up.
-
-THE TRANSFORM (why locations are preserved exactly)
----------------------------------------------------
-  OLD:  RootComponent = MainSpline.  The spline IS the root and holds the track's
-        world RelativeLocation / RelativeRotation.  Spline points are local to it.
-  NEW:  RootComponent = StaticMeshComponent0.  It holds the world transform and the
-        spline is attached underneath it at identity.
-  So we MOVE the old MainSpline's RelativeLocation / RelativeRotation onto the new
-  StaticMeshComponent0 and leave the (unchanged) local spline points alone.  Same
-  local points + same world transform  ==  pixel-identical track placement.
-
-USAGE
------
-  # EASIEST — clipboard mode (this is the DEFAULT when you give no file, and what happens
-  # if you just double-click the program): copy your old tracks in UEFN (Ctrl+C), run this,
-  # then paste back into UEFN (Ctrl+V).
-  python rr_track_converter.py
-
-  # Drag a UEFN-exported .txt onto the program, OR pass it explicitly -> writes
-  # "<name>_CONVERTED.txt" next to it:
-  python rr_track_converter.py  old_tracks.txt
-
-  # File in, file out:
-  python rr_track_converter.py  old_tracks.txt  new_tracks.txt
-
-THE UEFN WORKFLOW
------------------
-  1. In UEFN, select your old track pieces and press Ctrl+C  (or use the provided
-     OLD .txt export).
-  2. Run this script (clipboard mode, or paste the copied text into a .txt and use
-     file mode).
-  3. Delete the old (broken) track pieces from the level.
-  4. Paste (Ctrl+V) the converted text into the level — the new devices appear in the
-     exact same spot with the same shapes and types, and they validate.
-
-This script only uses the Python standard library, so it runs in UEFN's embedded
-Python or any normal Python 3.6+.
-"""
-
 import argparse
 import os
 import re
 import sys
 import uuid
 
-# --------------------------------------------------------------------------------------
-# Configuration — edit these if Epic renames things again, or to tweak behaviour.
-# --------------------------------------------------------------------------------------
 
-# Cosmetic: the old tracks used a very short 2800 cull distance.  The new device uses
-# ~23263, so distant parts of large tracks don't pop out.  Set to None to keep originals.
 NEW_DRAW_DISTANCE = "23263.666016"
 
-# Give every converted actor a brand-new SavedActorGuid so it can never collide with the
-# original it was made from.  (Connections key off actor NAME, not GUID, so this is safe.)
 REGENERATE_GUIDS = True
 
-# The new device's playset path (constant across every new track template).
 PLAYSET_PACKAGE_PATH = "/CRD_FortDelMarTrack/SetupAssets/PID_CP_Devices_FortDelMarTrack"
 
-# Old editor sprite material (deleted with the old brand) -> the new device's sprite material.
 OLD_SPRITE_MATERIAL = ("/DelMarGame/Track/Shared/PhysicalMaterials/"
                        "MI_CP_Device_DelMarTrack_Placed_01.MI_CP_Device_DelMarTrack_Placed_01")
 NEW_SPRITE_MATERIAL = ("/FortDelMarTrack/Thumbnails/Device/"
                        "MI_CP_Device_FortDelMarTrack.MI_CP_Device_FortDelMarTrack")
 
-# Ordered, anchored string substitutions.  ORDER MATTERS — see the comments.
-# Each tuple is (old, new).  These never touch the hex `SplineData` blob because every
-# pattern contains a '/', '.', or a quote, none of which occur inside the hex.
 IDENTIFIER_SUBSTITUTIONS = [
-    # 1. Sprite-icon archetype lives in a DIFFERENT package than the device class, so it
-    #    must be rewritten BEFORE the generic actor-class rule (#8) below.
+ 
     ("/DelMarGame/Track/DelMarTrack_BP.DelMarTrack_BP_C:SpriteIcon_GEN_VARIABLE",
      "/FortDelMarTrack/BP_FortDelMarTrack.BP_FortDelMarTrack_C:SpriteIcon_GEN_VARIABLE"),
-    # 2 & 3. Snap + spline component names (class AND instance names both gain the Fort prefix).
+    
     ("DelMarTrackSnapToSplinePointComponent", "FortDelMarTrackSnapToSplinePointComponent"),
     ("DelMarTrackSplineComponent",            "FortDelMarTrackSplineComponent"),
-    # 4. PointData CLASS only.  The component's *instance* name stays "DelMarTrackPointData"
-    #    in the new format, so we anchor on the /Script/ path and do NOT rename the instance.
+  
     ("/Script/DelMarTrackRuntime.DelMarTrackPointData",
      "/Script/FortDelMarTrackRuntime.FortDelMarTrackPointData"),
-    # 5. Catch-all for the runtime module (fixes the module path on the snap/spline classes
-    #    whose class names were already renamed in #2/#3).
+  
     ("/Script/DelMarTrackRuntime.", "/Script/FortDelMarTrackRuntime."),
-    # 6. Archetype default object (the "Default__" CDO) -> new device CDO.  Before #8.
+  
     ("/DelMarGame/Track/DelMarTrack_BP.Default__DelMarTrack_BP_C",
      "/CRD_FortDelMarTrack/Device_FortDelMarTrack.Default__Device_FortDelMarTrack_C"),
-    # 7. Generic actor class path -> new device class path.
+ 
     ("/DelMarGame/Track/DelMarTrack_BP.DelMarTrack_BP_C",
      "/CRD_FortDelMarTrack/Device_FortDelMarTrack.Device_FortDelMarTrack_C"),
-    # 8. Actor INSTANCE name prefix (keeps the unique _UAID_ suffix so names stay unique and
-    #    connection references keep pointing at the right converted actor).
+ 
     ("DelMarTrack_BP_C_UAID_", "Device_FortDelMarTrack_C_UAID_"),
-    # 9. Old sprite material -> new sprite material.
+  
     (OLD_SPRITE_MATERIAL, NEW_SPRITE_MATERIAL),
 ]
 
-# ----------------------------- Gameplay-tag (track TYPE) remap -----------------------------
-# The new device picks each segment's road/guardrail/tunnel mesh from this per-segment tag, so
-# getting it right is what keeps the road visible (this is exactly what the friend's version got
-# wrong). The namespace was renamed DelMar.Track.* -> FortDelMar.Track.*.
-#
-# These NEW tags are CONFIRMED to exist (every one appears in a Resources/Different_NEW_TrackTypes
-# template). Any produced tag NOT in this set is flagged at the end of a run so you can verify it
-# in UEFN (Window > Gameplay Tag List) and, if needed, correct TAG_MAP below.
 CONFIRMED_NEW_TAGS = {
-    "",  # empty = "no road here" (New_RR_Track_NONE.txt); valid and resolvable
+    "",  # empty = "no road"
     "FortDelMar.Track.Basic.Default.GuardrailNone",
     "FortDelMar.Track.Basic.Default.GuardrailLeft",
     "FortDelMar.Track.Basic.Default.GuardrailRight",
@@ -155,15 +60,10 @@ CONFIRMED_NEW_TAGS = {
     "FortDelMar.Track.Tunnel.Default.Wide.SolidCeiling",
 }
 
-# Explicit OLD -> NEW overrides. If you discover a tag that needs a hand-picked target (because
-# Epic dropped or renamed it), add it here and it wins over the default rule below.
-# NOTE on "DelMar.Track.Hidden": it is intentionally a road-less STRUCTURAL segment (it also
-# carries bForceValidTrack to keep the track continuous through invisible connectors), so we
-# preserve it as FortDelMar.Track.Hidden rather than blanking it — blanking would risk breaking
-# track continuity/validation. Override here only if UEFN confirms that tag is gone.
+
 TAG_MAP = {
-    # "DelMar.Track.Hidden": "FortDelMar.Track.Hidden",        # == default rule (shown for clarity)
-    # "DelMar.Track": "FortDelMar.Track.Basic.Default.GuardrailNone",   # example hand-pick
+    # "DelMar.Track.Hidden": "FortDelMar.Track.Hidden",        # = default rule
+    # "DelMar.Track": "FortDelMar.Track.Basic.Default.GuardrailNone",   
 }
 
 
@@ -176,7 +76,7 @@ def remap_tag(old_tag):
         return ""
     if old_tag.startswith("DelMar."):
         return "FortDelMar." + old_tag[len("DelMar."):]
-    return old_tag  # already-new or foreign tag: leave untouched
+    return old_tag  
 
 
 def _remap_tags(text, produced=None):
@@ -193,9 +93,6 @@ DEFAULT_OLD_RESOURCE = os.path.join(
     "..", "Resources", "TrackThatNeedsReplacement", "TracksThatNeedsToBeReplaced_OLD.txt")
 
 
-# --------------------------------------------------------------------------------------
-# Tiny T3D (UE copy/paste text) tree parser.  Keeps every untouched line byte-for-byte.
-# --------------------------------------------------------------------------------------
 
 def _make_node(header=None):
     return {"header": header, "body": [], "footer": None}
@@ -215,7 +112,7 @@ def parse_t3d(lines):
         elif s == "End Object" or s == "End Actor":
             if len(stack) > 1:
                 stack.pop()["footer"] = line
-            else:                       # unbalanced End — keep it as a raw line, don't crash
+            else:                       # unbalanced End
                 stack[-1]["body"].append(line)
         else:
             stack[-1]["body"].append(line)
@@ -235,9 +132,8 @@ def serialize_t3d(node, out):
     return out
 
 
-# --------------------------------------------------------------------------------------
-# Node helpers
-# --------------------------------------------------------------------------------------
+# helpers
+
 
 def _children(node):
     return [it for it in node["body"] if isinstance(it, dict)]
@@ -249,7 +145,7 @@ def _obj_name(node):
 
 
 def _is_decl(node):
-    # A declaration header carries 'Class='. A body header is just 'Begin Object Name="..."'.
+    # header 'Begin Object Name="blablabla"'.
     return "Class=" in (node["header"] or "")
 
 
@@ -264,9 +160,7 @@ def _strip_starts(line, prefix):
     return isinstance(line, str) and line.strip().startswith(prefix)
 
 
-# --------------------------------------------------------------------------------------
-# Conversion
-# --------------------------------------------------------------------------------------
+# Converter
 
 class ConversionError(Exception):
     pass
@@ -341,11 +235,11 @@ def _move_transform_to_static_mesh(actor, report):
             kept.append(item)
     spline["body"] = kept
 
-    # Spline must now be attached to the static mesh (it was the root before).
+    # Spline must now be attached to the static mesh bwfore it was like the ROot
     if not any(_strip_starts(i, "AttachParent=") for i in spline["body"]):
         spline["body"].append('            AttachParent="StaticMeshComponent0"')
 
-    # Drop any transform already on the static mesh, then graft the spline's transform on.
+    
     smc["body"] = [i for i in smc["body"]
                    if not (_strip_starts(i, "RelativeLocation=")
                            or _strip_starts(i, "RelativeRotation="))]
@@ -359,21 +253,21 @@ def _edit_actor_properties(actor, new_name):
     and playset path, refresh the GUID."""
     body = actor["body"]
 
-    # RootComponent: MainSpline -> StaticMeshComponent0
+    # RootComponent: MainSpline to the new shit ieg------ StaticMeshComponent0
     for i, item in enumerate(body):
         if _strip_starts(item, "RootComponent="):
             body[i] = '         RootComponent="StaticMeshComponent0"'
             break
 
-    # Fresh GUID so it can't clash with the original actor.
+    # New GUID so it can't bumps with the orig actor.
     if REGENERATE_GUIDS:
         for i, item in enumerate(body):
             if _strip_starts(item, "SavedActorGuid="):
                 body[i] = "         SavedActorGuid=" + uuid.uuid4().hex.upper()
                 break
 
-    # Insert the two component back-references (FortMinigameProgress / ToyOptionsComponent)
-    # just before the existing SpriteIcon="SpriteIcon" actor property, matching the template.
+    # 2 component back refs (FortMinigameProgress / ToyOptionsComponent)
+    # SpriteIcon as well
     refs = ['         FortMinigameProgress="FortMinigameProgress"',
             '         ToyOptionsComponent="ToyOptionsComponent"']
     sprite_idx = next((i for i, it in enumerate(body) if _strip_starts(it, "SpriteIcon=")), None)
@@ -382,7 +276,7 @@ def _edit_actor_properties(actor, new_name):
     else:
         body.extend(refs)
 
-    # PlaysetPackagePathName just before SavedActorGuid (or at the end if not present).
+    # PlaysetPackagePathName comes before SavedActorGuid or at the end sometimes if not present
     playset = '         PlaysetPackagePathName="{0}"'.format(PLAYSET_PACKAGE_PATH)
     if not any(_strip_starts(it, "PlaysetPackagePathName=") for it in body):
         guid_idx = next((i for i, it in enumerate(body) if _strip_starts(it, "SavedActorGuid=")),
@@ -397,17 +291,17 @@ def _insert_shell_components(actor, level_prefix, new_name):
     toy_decl, mini_decl, toy_body, mini_body = _new_components(level_prefix, new_name)
     body = actor["body"]
 
-    # Declarations: right after the SpriteIcon declaration object.
+    # right after the SpriteIcon declaration object
     sprite_decl = _find_object(actor, "SpriteIcon", decl=True)
     if sprite_decl is not None and sprite_decl in body:
         idx = body.index(sprite_decl)
         body[idx + 1:idx + 1] = [toy_decl, mini_decl]
     else:
-        # Fall back: put them before the first actor-level property line.
+        # put them before the first actor property line
         first_prop = next((i for i, it in enumerate(body) if isinstance(it, str)), len(body))
         body[first_prop:first_prop] = [toy_decl, mini_decl]
 
-    # Bodies: right after the SpriteIcon body object.
+    # And bodies after the SpriteIcon body object
     sprite_body = _find_object(actor, "SpriteIcon", decl=False)
     if sprite_body is not None and sprite_body in body:
         idx = body.index(sprite_body)
@@ -428,28 +322,28 @@ def _extract_level_prefix(actor_header):
 
 def convert_actor(actor_node, report):
     """Convert one parsed Actor node IN PLACE-ish: returns a fresh converted node."""
-    # 1) String-level identity + tag + material + cull substitutions on the whole actor.
+    # String identity + tag + material + cull substitutions
     text = "\n".join(serialize_t3d(actor_node, []))
     produced_tags = []
     text = _apply_string_substitutions(text, produced_tags)
     report["produced_tags"] = produced_tags
 
-    # 2) Re-parse the rewritten actor.
+    # Re-parse
     actor = _children(parse_t3d(text.split("\n")))[0]
 
-    # 3) Identify new name + level prefix for component wiring.
+    # Identify new name
     new_name = _obj_name_from_actor(actor["header"])
     level_prefix = _extract_level_prefix(actor["header"])
     report["name"] = new_name
 
-    # 4) Re-home the world transform (exact placement preserved).
+    # Re-home the world transform to implement the same placeme nt of the actorss
     _move_transform_to_static_mesh(actor, report)
 
-    # 5) Add the new device-shell components + actor properties.
+    # Add new device shell components + actor properties
     _insert_shell_components(actor, level_prefix, new_name)
     _edit_actor_properties(actor, new_name)
 
-    # 6) Collect a per-actor report.
+    # actor report
     pd = _find_object(actor, "DelMarTrackPointData", decl=False)
     tags = []
     if pd is not None:
@@ -479,7 +373,7 @@ def convert_text(text):
     for i, item in enumerate(tree["body"]):
         if isinstance(item, dict) and item["header"] and item["header"].lstrip().startswith("Begin Actor"):
             if OLD_ACTOR_CLASS_MARKER not in item["header"]:
-                # Not an old DelMar track — leave it untouched so mixed selections are safe.
+                # Not an old DelMar track
                 continue
             report = {}
             try:
@@ -490,7 +384,7 @@ def convert_text(text):
                 report["ok"] = False
                 report["error"] = str(exc)
                 report["name"] = _obj_name_from_actor(item["header"])
-                drop.add(i)                       # don't emit a half-broken/old-class actor
+                drop.add(i)                       # don't emit
             reports.append(report)
 
     if drop:
@@ -503,9 +397,9 @@ def convert_text(text):
     return converted_text, reports, converted_count
 
 
-# --------------------------------------------------------------------------------------
-# Clipboard (Windows) — optional, std-lib only, never fatal.
-# --------------------------------------------------------------------------------------
+
+# Clipboard (Windows)optional
+
 
 CF_UNICODETEXT = 13
 GMEM_MOVEABLE = 0x0002
@@ -568,7 +462,7 @@ def get_clipboard_text():
 def set_clipboard_text(text):
     try:
         ctypes, u32, k32 = _win_clipboard()
-        buf = ctypes.create_unicode_buffer(text)   # NUL-terminated copy of the string
+        buf = ctypes.create_unicode_buffer(text)   # NUL terminated copy of the string
         size = ctypes.sizeof(buf)
         h = k32.GlobalAlloc(GMEM_MOVEABLE, size)
         if not h:
@@ -585,9 +479,9 @@ def set_clipboard_text(text):
         try:
             u32.EmptyClipboard()
             if not u32.SetClipboardData(CF_UNICODETEXT, h):
-                k32.GlobalFree(h)               # we still own it on failure
+                k32.GlobalFree(h)               # failure
                 return False
-            return True                          # success: the OS owns the handle now
+            return True                          # success
         finally:
             u32.CloseClipboard()
     except Exception as exc:                                       # noqa: BLE001
@@ -595,9 +489,9 @@ def set_clipboard_text(text):
         return False
 
 
-# --------------------------------------------------------------------------------------
+
 # Reporting + CLI
-# --------------------------------------------------------------------------------------
+
 
 def print_report(reports, converted_count):
     print("-" * 70)
@@ -623,9 +517,8 @@ def print_report(reports, converted_count):
     print("-" * 70)
     print("Converted {0} track actor(s).".format(converted_count))
 
-    # Surface any produced type tag we can't confirm against the NEW templates. They are very
-    # likely valid (same namespace), but this is the one place an invisible segment could hide,
-    # so we name them explicitly instead of pretending everything is verified.
+    # Surface any produced type tag that can't confirm against the new templates. They are very most likely valid with same namespace), but this is the one place an invisible segment could kinda be,
+    # so it names them explicitly
     unconfirmed = sorted((t, c) for t, c in tag_counts.items() if t not in CONFIRMED_NEW_TAGS)
     if unconfirmed:
         print("")
