@@ -35,11 +35,14 @@ are, with the **same segments** and the **same types**
 
 ## How to run the converter?
 
+You need to download the source code of this repo to proceed.
+
+
 There are three methods, depends on your needs.
 
 ### Easiest
 Download the RR_Track_Converter **`.exe`**
-Copy your tracks in UEFN
+Copy your tracks in UEFN.
 **Launch `RR_Track_Converter.exe`.** A cmd window opens
    and says *"The NEW tracks are now on your clipboard."*
 Do the steps 3 and 4 above and you done.
