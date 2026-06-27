@@ -4,8 +4,7 @@ This is a Rocket Racing Track Converter
 
 If Epic's update broke your old tracks (they won't validate), this little tool fixes them. It keeps your tracks **exactly** where they
 are, with the **same segments** and the **same types**
-> **You do NOT need to be a coder.** You do NOT even need to understand what's
-> happening. Follow the steps below because it's mostly copy paste.
+> Follow the steps below, it's mostly copy paste.
 
 ---
 
