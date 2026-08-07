@@ -1,6 +1,6 @@
 <a name="RR Track Converter"></a>
 ## RR Track Converter
-[<img align="left" width="150" src="https://rocketracingarchive.com/assets/content-service/github/live/on/rr_track_converter_icon.gif">](https://rocketracingarchive.com)
+[<img align="left" width="150" src="https://rocketracingarchive.com/assets/content-service/github/live/on/rr_track_converter_icon.gif">](https://content-service.rocketracingarchive.com/UEFN_RocketRacing_TrackConverter)
 
 > [!IMPORTANT]
 > **Fix your old Rocket Racing tracks that stopped validating without manually rebuilding them.**
