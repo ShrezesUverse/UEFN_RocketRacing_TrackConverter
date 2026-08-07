@@ -67,9 +67,7 @@
 
 ## How to run the converter?
 
-You need to download the source code of this repo to proceed.
-
-Download the RR_Track_Converter **`.exe`**
+Download the RR_Track_Converter **`.exe`** from [Release](https://github.com/ShrezesUverse/UEFN_RocketRacing_TrackConverter/releases/latest)
 Copy your tracks in UEFN.
 **Launch `RR_Track_Converter.exe`.** A cmd window opens
    and says *"The NEW tracks are now on your clipboard."*
