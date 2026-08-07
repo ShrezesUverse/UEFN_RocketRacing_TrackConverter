@@ -2,7 +2,7 @@
 ## RR Track Converter
 <img align="left" width="250" src="https://content-service.rocketracingarchive.com/UEFN_RocketRacing_TrackConverter">
 
-> [!IMPORTANT]
+> [!TIP]
 > **Fix your old Rocket Racing tracks that stopped validating without manually rebuilding them.**
 >
 >
