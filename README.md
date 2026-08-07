@@ -9,9 +9,6 @@
 
   <h3 align="center">Rocket Racing Track Converter</h3>
 
-  <p align="center">
-    <a href="#table-of-contents"><strong>Explore the docs »</strong></a>
-  </p>
 </div>
 
 <div align="center">
