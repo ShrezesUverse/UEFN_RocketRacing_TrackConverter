@@ -1,6 +1,35 @@
+<br/>
+<div align="center">
+  <!--
+  Also popularly known as "JAA", standing for Json As Asset.
+  Now known as Reflection, can be used in a way like "Reflect that asset!"
+  -->
+  
+  <a href="https://github.com/JsonAsAsset/Reflection">
+    <p>
+      <img src="https://github.com/user-attachments/assets/93a77406-ed04-4eed-bceb-c3f87f1293ab" alt="Logo" width="200">
+    </p>
+  </a>
+
+  <h3 align="center">Rocket Racing Track Converter</h3>
+
+  <p align="center">
+    <a href="#table-of-contents"><strong>Explore the docs »</strong></a>
+  </p>
+</div>
+
+<div align="center">
+
+[![GitHub Repo stars](https://img.shields.io/github/stars/UEFN_RocketRacing_TrackConverter?style=for-the-badge&logo=&color=fcca03)](/../../stargazers)
+[![GitHub TotalDownloads  Count](https://img.shields.io/github/downloads/UEFN_RocketRacing_TrackConverter/total?style=for-the-badge&label=DOWNLOADS&color=05c1ff)](/../../releases)
+
+[![Discord](https://img.shields.io/badge/Join%20Discord-Collector?color=0363ff&logo=discord&logoColor=white&style=for-the-badge)](https://discord.com/invite/ABmyD3NRGV)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Ko--fi?color=ff0de7&logo=ko-fi&logoColor=white&style=for-the-badge)](https://ko-fi.com/shrezee)
+---
+
 <a name="RR Track Converter"></a>
 ## RR Track Converter
-<img align="left" width="250" src="https://content-service.rocketracingarchive.com/UEFN_RocketRacing_TrackConverter">
+<img align="center" width="250" src="https://content-service.rocketracingarchive.com/UEFN_RocketRacing_TrackConverter">
 
 > [!NOTE]
 > **Fix your old Rocket Racing tracks that stopped validating without manually rebuilding them.**
@@ -12,8 +41,6 @@
 >  ​
 
 <br clear="left"/>
-
----
 
 
 ## Do I need UEFN open to run it?
@@ -45,30 +72,11 @@
 
 You need to download the source code of this repo to proceed.
 
-
-There are three methods, depends on your needs.
-
-### Easiest
 Download the RR_Track_Converter **`.exe`**
 Copy your tracks in UEFN.
 **Launch `RR_Track_Converter.exe`.** A cmd window opens
    and says *"The NEW tracks are now on your clipboard."*
 Do the steps 3 and 4 above and you done.
-
-### With Python
-If you have **Python** installed
-Copy your tracks in UEFN.
-Launch `convert_tracks.bat`.**
-Do the steps 3 and 4 above and you done.
-
-*(You can download python free from [python.org/downloads](https://www.python.org/downloads/) —
-or just use the `.exe` above.)*
-
-### Other methods.
-In UEFN, copy your tracks, then paste them into a Notepad file and save it (e.g. `mytracks.txt`).
-**Drag that file into** `RR_Track_Converter.exe` (or `rr_track_converter.py`).
-It makes a new file called `mytracks_CONVERTED.txt`
-Open that file, press `Ctrl + A` then `Ctrl + C`, and paste into UEFN
 
 ---
 
