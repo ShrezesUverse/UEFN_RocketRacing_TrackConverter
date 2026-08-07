@@ -14,7 +14,7 @@
 <div align="center">
 
 [![GitHub Repo stars](https://img.shields.io/github/stars/ShrezesUverse/UEFN_RocketRacing_TrackConverter?style=for-the-badge&logo=&color=fcca03)](/../../stargazers)
-[![GitHub TotalDownloads  Count](https://img.shields.io/github/downloads/ShrezesUverse/UEFN_RocketRacing_TrackConverter/total?style=for-the-badge&label=DOWNLOADS&color=05c1ff)](/../../releases)
+[![GitHub TotalDownloads  Count](https://img.shields.io/github/downloads/ShrezesUverse/UEFN_RocketRacing_TrackConverter/total?style=for-the-badge&label=DOWNLOADS&color=05c1ff)](https://github.com/ShrezesUverse/UEFN_RocketRacing_TrackConverter/releases/latest)
 
 [![Discord](https://img.shields.io/badge/Join%20Discord-Collector?color=0363ff&logo=discord&logoColor=white&style=for-the-badge)](https://discord.com/invite/ABmyD3NRGV)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Ko--fi?color=ff0de7&logo=ko-fi&logoColor=white&style=for-the-badge)](https://ko-fi.com/shrezee)
