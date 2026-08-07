@@ -1,9 +1,5 @@
 <br/>
 <div align="center">
-  <!--
-  Also popularly known as "JAA", standing for Json As Asset.
-  Now known as Reflection, can be used in a way like "Reflect that asset!"
-  -->
   
   <a href="https://github.com/ShrezesUverse/UEFN_RocketRacing_TrackConverter">
     <p>
@@ -28,9 +24,10 @@
 
 <br clear="center"/>
 
+</div>
+
 ---
 <br/>
-<div align="left">
   
 <a name="RR Track Converter"></a>
 ## RR Track Converter
@@ -44,7 +41,6 @@
 > Follow the steps below, it's mostly copy paste.​
 >  ​
 
-<br clear="left"/>
 
 
 ## Do I need UEFN open to run it?
